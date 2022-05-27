@@ -1,0 +1,31 @@
+/*
+
+!.gitignore
+!README.md
+
+# CubeMX generated files (STM32CubeIDE 1.8.0 project)
+# ** Core also has platform specific sources for vl53l4cx
+!Core
+!Drivers
+!vl53l4cx-demo.ioc
+!STM32F411RETX_FLASH.ld
+!STM32F411RETX_RAM.ld
+!.cproject
+!.mxproject
+!.project
+
+# Drivers for sensor
+!vl53l4cx
+
+# CMake project
+!Makefile
+!CMakeLists.txt
+!gcc-arm-none-eabi.cmake
+!.clang-format
+
+# Nix derivation
+!default.nix
+!flake.nix
+!flake.lock
+!.envrc
+
