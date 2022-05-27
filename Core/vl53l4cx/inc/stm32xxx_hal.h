@@ -42,8 +42,10 @@ extern "C"
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "mxconstants.h"
-
+#ifdef STM32F411xE
+#include "stm32f4xx_hal.h"
+#define MCU_NAME "STM32F411xE"
+#endif
 #ifdef STM32F401xE
 #include "stm32f4xx_hal.h"
 #define MCU_NAME "STM32F401xE"

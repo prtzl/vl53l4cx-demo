@@ -74,7 +74,8 @@ extern "C"
 #define XSHUT_Pin GPIO_PIN_3
 #define XSHUT_GPIO_Port GPIOB
     /* USER CODE BEGIN Private defines */
-
+#define VL53L1X_INT_Pin GPIO_PIN_4
+#define VL53L1X_INT_GPIO_Port GPIOA
     /* USER CODE END Private defines */
 
 #ifdef __cplusplus

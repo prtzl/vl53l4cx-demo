@@ -13,6 +13,7 @@
 #define _VL53LX_NVM_H_
 
 #include "vl53lx_ll_def.h"
+#include "vl53lx_nvm_structs.h"
 #include "vl53lx_platform.h"
 
 #ifdef __cplusplus

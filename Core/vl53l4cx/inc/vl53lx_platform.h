@@ -29,7 +29,7 @@
 #ifndef _VL53LX_PLATFORM_H_
 #define _VL53LX_PLATFORM_H_
 
-#include "VL53Lx_ll_def.h"
+#include "vl53lx_ll_def.h"
 #include <vl53lx_platform_log.h>
 
 #define VL53LX_IPP_API
