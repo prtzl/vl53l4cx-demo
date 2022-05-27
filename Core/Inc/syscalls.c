@@ -61,7 +61,7 @@
  *****************************************************************************
  */
 
-extern int fputc(int ch) __attribute__((weak));
+#include <stdio.h>
 
 int _write(int file, char* ptr, int len)
 {
@@ -69,7 +69,7 @@ int _write(int file, char* ptr, int len)
 
     for (DataIdx = 0; DataIdx < len; DataIdx++)
     {
-        fputc(*ptr++);
+        fputc(*ptr++, NULL);
     }
     return len;
 }
