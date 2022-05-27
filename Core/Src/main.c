@@ -25,7 +25,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "vl53lx_api.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -51,11 +51,17 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+void RangingLoop(VL53LX_DEV Dev);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+int fputc(int ch, FILE* f)
+{
+    HAL_UART_Transmit(&huart2, (uint8_t*)&ch, 1, 0xFFFF);
+    return ch;
+}
 
 /* USER CODE END 0 */
 
@@ -90,6 +96,46 @@ int main(void)
     MX_I2C1_Init();
     MX_USART2_UART_Init();
     /* USER CODE BEGIN 2 */
+
+    // Init Dev to i2c1 and default i2c address
+    static VL53LX_Dev_t dev; // takes 10872B of data, lets put it in static
+    VL53LX_DEV pdev = &dev;
+    pdev->I2cHandle = &hi2c1;
+    pdev->I2cDevAddr = 0x52;
+
+    printf("VL53L1X Example starting!\n\r");
+
+    /*
+        I'm not using the fancy "platform" code.
+        This includes the commented code below (init reset).
+        Also, it uses some kind of i2c expander,
+        which I don't have on a nucleo board or
+        VL53L4CX arduino shield. It just has integrated
+        sensors and two headers for two more. Nothing else.
+        The purpose is to toggle the reset pin to get
+        the sensor in correct state. Let's just use the GPIO.
+    */
+    // uint8_t ToFSensor = 1; // Select ToFSensor: 0=Left, 1=Center, 2=Right
+    // status = XNUCLEO53L3A2_ResetId(ToFSensor, 0); // Reset ToF sensor
+    // HAL_Delay(2);
+    // status = XNUCLEO53L3A2_ResetId(ToFSensor, 1); // Reset ToF sensor
+    // HAL_Delay(2);
+
+    HAL_GPIO_WritePin(XSHUT_GPIO_Port, XSHUT_Pin, 0);
+    HAL_Delay(2);
+    HAL_GPIO_WritePin(XSHUT_GPIO_Port, XSHUT_Pin, 1);
+    HAL_Delay(2);
+
+    // Read sensor information
+    uint8_t byteData = 0;
+    uint16_t wordData = 0;
+    VL53LX_RdByte(pdev, 0x010F, &byteData);
+    printf("VL53LX Model_ID: %02X\n\r", byteData);
+    VL53LX_RdByte(pdev, 0x0110, &byteData);
+    printf("VL53LX Module_Type: %02X\n\r", byteData);
+    VL53LX_RdWord(pdev, 0x010F, &wordData);
+    printf("VL53LX: %02X\n\r", wordData);
+    RangingLoop(pdev);
 
     /* USER CODE END 2 */
 
@@ -148,6 +194,90 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+void RangingLoop(VL53LX_DEV Dev)
+{
+    printf("Ranging loop starts\n\r");
+
+    // Init sensor and start measurements
+    int status = 0;
+    status = VL53LX_WaitDeviceBooted(Dev);
+    status = VL53LX_DataInit(Dev);
+    status = VL53LX_StartMeasurement(Dev);
+    if (status)
+    {
+        while (1)
+        {
+            printf("VL53LX_StartMeasurement failed: error = %d \n\r", status);
+            HAL_Delay(1000);
+        }
+    }
+
+    while (1)
+    {
+        VL53LX_MultiRangingData_t MultiRangingData;
+        VL53LX_MultiRangingData_t* pMultiRangingData = &MultiRangingData;
+        size_t no_of_object_found = 0;
+        uint8_t NewDataReady = 0;
+
+        // Poll for conversion
+        status = VL53LX_GetMeasurementDataReady(Dev, &NewDataReady);
+        HAL_Delay(1); // 1 ms polling period, could be longer.
+        if (!(!status && (NewDataReady != 0)))
+        {
+            continue;
+        }
+
+        // Get state and number of found objects, some may be failed on each run
+        status = VL53LX_GetMultiRangingData(Dev, pMultiRangingData);
+        no_of_object_found = pMultiRangingData->NumberOfObjectsFound;
+
+        // Get indices and of good objects and sum them up
+        size_t no_of_good_object_found = 0;
+        size_t good_object_indices[no_of_object_found];
+        for (size_t i = 0; i < no_of_object_found; ++i)
+        {
+            size_t const good = pMultiRangingData->RangeData[i].RangeStatus == 0;
+            no_of_good_object_found += good;
+            good_object_indices[i] = good;
+        }
+
+        // Loop over found objects and only print valid ones
+        size_t no_of_good_object_downcounter = no_of_good_object_found;
+        for (size_t i = 0; i < no_of_object_found; ++i)
+        {
+            if (good_object_indices[i] != 0)
+            {
+                if (no_of_good_object_downcounter == no_of_good_object_found)
+                {
+                    // Print header line
+                    printf(
+                        "Count=%5d, #Objs=%1d: ",
+                        pMultiRangingData->StreamCount,
+                        no_of_good_object_found);
+                }
+                else
+                {
+                    // Space for second found object
+                    printf("                      ");
+                }
+                --no_of_good_object_downcounter;
+                printf(
+                    "Object number: %d, status=%d, D=%5dmm, Signal=%2.2f Mcps, "
+                    "Ambient=%2.2f Mcps\n\r",
+                    i,
+                    pMultiRangingData->RangeData[i].RangeStatus,
+                    pMultiRangingData->RangeData[i].RangeMilliMeter,
+                    pMultiRangingData->RangeData[i].SignalRateRtnMegaCps / 65536.0,
+                    pMultiRangingData->RangeData[i].AmbientRateRtnMegaCps / 65536.0);
+            }
+        }
+        if (status == 0)
+        {
+            status = VL53LX_ClearInterruptAndStartMeasurement(Dev);
+        }
+    }
+}
 
 /* USER CODE END 4 */
 
