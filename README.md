@@ -16,4 +16,5 @@ nix v2.8.1 (optional)
 Run `make -j` to compile the project, executable will be in `./build`.  
 Run `make flash` to flash with `st-flash`.  
 With nix run `nix build`, executable will be in `./result/bin`.
+To flash with nix (and (re)build), run `nix run .\#flash-st.x86_64-linux`
 
