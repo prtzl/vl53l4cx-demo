@@ -63,6 +63,8 @@
 
 #include <stdio.h>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnonnull"
 int _write(int file, char* ptr, int len)
 {
     int DataIdx;
@@ -73,3 +75,5 @@ int _write(int file, char* ptr, int len)
     }
     return len;
 }
+#pragma GCC diagnostic pop
+
