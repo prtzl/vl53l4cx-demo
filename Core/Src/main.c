@@ -63,6 +63,12 @@ int fputc(int ch, FILE* f)
     return ch;
 }
 
+#define panic_and_stop(...) \
+    do { \
+        printf(__VA_ARGS__); \
+        HAL_Delay(1000); \
+    } while (1);
+
 /* USER CODE END 0 */
 
 /**
@@ -126,6 +132,13 @@ int main(void)
     HAL_GPIO_WritePin(XSHUT_GPIO_Port, XSHUT_Pin, 1);
     HAL_Delay(2);
 
+    // Init
+    uint8_t status = VL53LX_WaitDeviceBooted(pdev);
+    if (status || VL53LX_DataInit(pdev))
+    {
+        panic_and_stop("Init failed!");
+    }
+
     // Read sensor information
     uint8_t byteData = 0;
     uint16_t wordData = 0;
@@ -135,6 +148,41 @@ int main(void)
     printf("VL53LX Module_Type: %02X\n\r", byteData);
     VL53LX_RdWord(pdev, 0x010F, &wordData);
     printf("VL53LX: %02X\n\r", wordData);
+
+    // Corrections and calibrations (non interactive)
+    if (VL53LX_SmudgeCorrectionEnable(pdev, VL53LX_SMUDGE_CORRECTION_CONTINUOUS))
+    {
+        panic_and_stop("Smudge correction enable failed!");
+    }
+    if (VL53LX_SetXTalkCompensationEnable(pdev, 1))
+    {
+        panic_and_stop("XTalk compensation enable failed!");
+    }
+    if (VL53LX_PerformXTalkCalibration(pdev))
+    {
+        panic_and_stop("XTalk calibration failed");
+    }
+    if (VL53LX_PerformRefSpadManagement(pdev))
+    {
+        panic_and_stop("RefSpad management failed!");
+    }
+    if (VL53LX_SetOffsetCorrectionMode(pdev, VL53LX_OFFSETCORRECTIONMODE_STANDARD))
+    {
+        panic_and_stop("Offset correction mode enable failed!");
+    }
+    // Interactive calibrations
+    // Need a target at an accurate distance
+    // if (VL53LX_PerformOffsetSimpleCalibration(pdev, 50))
+    // {
+    //     panic_and_stop("");
+    // }
+    // Use cover glass and a solid object touching it
+    // if (VL53LX_PerformOffsetZeroDistanceCalibration(pdev))
+    // {
+    //     panic_and_stop("");
+    // }
+
+    // Main example application
     RangingLoop(pdev);
 
     /* USER CODE END 2 */
@@ -201,16 +249,10 @@ void RangingLoop(VL53LX_DEV Dev)
 
     // Init sensor and start measurements
     int status = 0;
-    status = VL53LX_WaitDeviceBooted(Dev);
-    status = VL53LX_DataInit(Dev);
     status = VL53LX_StartMeasurement(Dev);
     if (status)
     {
-        while (1)
-        {
-            printf("VL53LX_StartMeasurement failed: error = %d \n\r", status);
-            HAL_Delay(1000);
-        }
+        panic_and_stop("VL53LX_StartMeasurement failed: error = %d \n\r", status);
     }
 
     while (1)
@@ -263,7 +305,7 @@ void RangingLoop(VL53LX_DEV Dev)
                 }
                 --no_of_good_object_downcounter;
                 printf(
-                    "Object number: %d, status=%d, D=%5dmm, Signal=%2.2f Mcps, "
+                    "Object number: %1u, status=%2u, D=%5dmm, Signal=%2.2f Mcps, "
                     "Ambient=%2.2f Mcps\n\r",
                     i,
                     pMultiRangingData->RangeData[i].RangeStatus,
