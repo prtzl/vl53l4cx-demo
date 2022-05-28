@@ -104,6 +104,7 @@ target_link_options(${EXECUTABLE} PRIVATE
     ${CPU_PARAMETERS}
     -Wl,-Map=${CMAKE_PROJECT_NAME}.map
     -specs=nosys.specs
+    -u_printf_float
     -Wl,--start-group
     -lc
     -lm
